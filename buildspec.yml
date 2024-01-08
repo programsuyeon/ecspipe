@@ -6,9 +6,7 @@ env:
     CONTAINER_NAME: ecspipe-container
   
 phases:
-  install:
-    runtime-versions:
-      java: corretto8
+
   pre_build: #빌드 전에 할 행동
     commands:
       - #ECR 로그인
