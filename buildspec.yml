@@ -1,0 +1,33 @@
+version: 0.2
+env:
+  AWS_ECR: 571698711201.dkr.ecr.ap-northeast-2.amazonaws.com
+  IMAGE_REPO_NAME: ecspipe-image
+  CONTAINER_NAME: ecspipe-container
+  
+phases:
+  install:
+    runtime-versions:
+      java: corretto8
+  pre_build: #빌드 전에 할 행동
+    commands:
+      - #ECR 로그인
+      - aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin $AWS_ECR
+  build: # 빌드 명령
+    commands:
+      - IMAGE_TAG=$CODEBUILD_BUILD_NUMBER #이미지빌드 : build번호는 도커이미지의 태그
+      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ECR/$IMAGE_REPO_NAME:$IMAGE_TAG
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ECR/$IMAGE_REPO_NAME:latest
+  post_build:
+    commands:
+      - docker push $AWS_ECR/$IMAGE_REPO_NAME:latest #이미지푸시
+      - docker push $AWS_ECR/$IMAGE_REPO_NAME:$IMAGE_TAG
+      - printf '[{"name":"%s","imageUri":"%s"}]' $CONTAINER_NAME $AWS_ECR/$IMAGE_REPO_NAME:$IMAGE_TAG > imagedefinitions.json
+      - #이미지푸시 : build번호를 갖고있는 이미지를 푸시
+      - #json 형태로 이미지를 지정하는 파일(xx.json)을 생성
+
+artifacts: 
+  files: # 빌드후에 배포단계로 옮길 파일들.
+    - imagedefinitions.json #push된 이미지로 부터 컨테이너를 배포하기 위함
+    - #이미지정보가 담겨있는 json 파일을 지정
+  
